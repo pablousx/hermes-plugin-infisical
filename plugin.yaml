@@ -1,0 +1,14 @@
+name: infisical
+version: 0.1.0
+description: "Load Hermes Agent secrets from Infisical using Universal Auth. Read-only; downloaded secrets remain in process memory."
+author: "Pablo Cabrera"
+requires_env:
+  - name: INFISICAL_HOST_URL
+    description: Base URL of the Infisical instance
+    secret: false
+  - name: INFISICAL_UNIVERSAL_AUTH_CLIENT_ID
+    description: Universal Auth Machine Identity client ID
+    secret: false
+  - name: INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET
+    description: Universal Auth Machine Identity client secret
+    secret: true
