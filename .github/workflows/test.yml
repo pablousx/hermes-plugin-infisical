@@ -1,41 +1,112 @@
-name: test
+name: CI
+
+run-name: CI / ${{ github.event_name }} / ${{ github.ref_name }}
 
 on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
 env:
+  HERMES_AGENT_REPOSITORY: https://github.com/NousResearch/hermes-agent.git
   HERMES_AGENT_REF: 4a8eeb5d1cd427d200ef2e9b55bc22e48bd4ebca
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_INPUT: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONHASHSEED: "0"
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+  quality:
+    name: Quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-ci.txt
+
+      - name: Install locked CI dependencies
+        run: "python -m pip install --no-deps --only-binary=:all: -r requirements-ci.txt"
+
+      - name: Compile Python sources
+        run: python -m compileall -q __init__.py infisical_source.py tests
+
+      - name: Lint
+        run: python -m ruff check .
+
+      - name: Validate plugin manifest
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          manifest = yaml.safe_load(Path("plugin.yaml").read_text(encoding="utf-8"))
+          assert manifest["name"] == "infisical"
+          assert manifest["version"] == "0.1.0"
+          required = {item["name"]: item for item in manifest["requires_env"]}
+          assert set(required) == {
+              "INFISICAL_HOST_URL",
+              "INFISICAL_UNIVERSAL_AUTH_CLIENT_ID",
+              "INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET",
+          }
+          assert required["INFISICAL_HOST_URL"]["secret"] is False
+          assert required["INFISICAL_UNIVERSAL_AUTH_CLIENT_ID"]["secret"] is False
+          assert required["INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET"]["secret"] is True
+          PY
+
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install test dependencies
-        run: python -m pip install --disable-pip-version-check pytest ruff pyyaml python-dotenv rich
+          cache: pip
+          cache-dependency-path: requirements-ci.txt
+
+      - name: Install locked CI dependencies
+        run: "python -m pip install --no-deps --only-binary=:all: -r requirements-ci.txt"
+
       - name: Checkout supported Hermes Agent contract
         run: |
           git init "$RUNNER_TEMP/hermes-agent"
-          git -C "$RUNNER_TEMP/hermes-agent" remote add origin https://github.com/NousResearch/hermes-agent.git
+          git -C "$RUNNER_TEMP/hermes-agent" remote add origin "$HERMES_AGENT_REPOSITORY"
           git -C "$RUNNER_TEMP/hermes-agent" fetch --depth 1 origin "$HERMES_AGENT_REF"
           git -C "$RUNNER_TEMP/hermes-agent" checkout --detach FETCH_HEAD
-      - name: Compile
-        run: python -m compileall -q __init__.py infisical_source.py
-      - name: Lint
-        run: python -m ruff check .
-      - name: Test
+
+      - name: Run tests without live credentials
         env:
           HERMES_AGENT_REPO: ${{ runner.temp }}/hermes-agent
           PYTHONPATH: ${{ runner.temp }}/hermes-agent
