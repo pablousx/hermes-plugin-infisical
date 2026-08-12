@@ -14,6 +14,41 @@ A read-only [Hermes Agent](https://github.com/NousResearch/hermes-agent) `Secret
 - An Infisical Machine Identity configured for Universal Auth.
 - Read access to the selected project, environment, and path.
 
+## Where the Client ID and Client Secret go
+
+Both credentials go in the `.env` file of the Hermes profile that runs the plugin. They do **not** go in `config.yaml`, the plugin repository, the agent prompt, or the Infisical project folder.
+
+| Credential | Hermes `.env` entry |
+|---|---|
+| Infisical Client ID | `INFISICAL_UNIVERSAL_AUTH_CLIENT_ID=...` |
+| Infisical Client Secret | `INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET=...` |
+
+Use Hermes to print the exact file path for the active profile:
+
+```bash
+hermes config env-path
+```
+
+For a named profile, select that profile in the command:
+
+```bash
+hermes -p PROFILE_NAME config env-path
+```
+
+Typical locations are:
+
+- Default profile: `~/.hermes/.env`
+- Named profile: `~/.hermes/profiles/PROFILE_NAME/.env`
+- Custom installation: `$HERMES_HOME/.env`
+
+The recommended way to populate the file is to run the plugin installer for the same profile. Hermes asks for the Client ID and Client Secret, hides the Client Secret input, and writes both values to that profile's `.env` file:
+
+```bash
+hermes -p PROFILE_NAME plugins install pablousx/hermes-plugin-infisical --enable
+```
+
+Omit `-p PROFILE_NAME` only when configuring the default profile. Run this in your own private terminal and enter the values interactively; never paste the Client Secret into an agent conversation.
+
 ## Install with a prompt
 
 Paste the prompt below into a Hermes agent. You do not need to paste the Client ID or Client Secret into the prompt. If the Infisical identity has not been prepared yet, the agent must walk you through the browser steps below and then pause while you enter the credentials directly into Hermes' local, interactive installer.
@@ -46,15 +81,20 @@ Instructions:
    e. In Project Settings, use Copy Project ID. Confirm the environment slug and
       folder path containing the environment-shaped secrets Hermes should load.
 4. When the identity is ready, tell me to run this command myself in a private local
-   terminal:
-   hermes plugins install pablousx/hermes-plugin-infisical --enable
+   terminal, targeting the same profile as the affected gateway:
+   hermes -p PROFILE_NAME plugins install pablousx/hermes-plugin-infisical --enable
+   Tell me to omit `-p PROFILE_NAME` only for the default profile. First run
+   `hermes -p PROFILE_NAME config env-path` so I can see the exact destination.
    Explain the three prompts before I run it: INFISICAL_HOST_URL is
    https://app.infisical.com for Infisical Cloud US,
    https://eu.infisical.com for Cloud EU, or my self-hosted URL; the Client ID is
    copied from the identity; and the Client Secret is the newly generated value.
-   The installer hides secret input and saves the values to ~/.hermes/.env. Pause
-   until I confirm installation completed. Never type credentials into a tool call,
-   command argument, log, or chat message.
+   State explicitly that both the Client ID and Client Secret are saved in the
+   active profile's .env file: ~/.hermes/.env for the default profile or
+   ~/.hermes/profiles/PROFILE_NAME/.env for a named profile. They never belong in
+   config.yaml. The installer hides secret input. Pause until I confirm installation
+   completed. Never type credentials into a tool call, command argument, log, or
+   chat message.
 5. After I confirm, verify only that the three required variable names are present;
    never read or print their values. Configure secrets.sources and
    secrets.infisical for the selected scope. Preserve
@@ -153,7 +193,10 @@ Rules:
    before writing. Ask before reinstalling, updating, changing a network security
    setting, or modifying any credential.
 6. If credentials are missing or invalid, do not ask me to paste them into chat.
-   Tell me to run the plugin installer in a private local terminal and enter them in
+   Tell me to run `hermes -p PROFILE_NAME config env-path` to identify the affected
+   profile's exact .env file, then run the plugin installer for that same profile in
+   a private local terminal. State that the installer writes both the Client ID and
+   Client Secret to that .env file, never to config.yaml, and have me enter them in
    its interactive prompts. If rotation is required, guide me to the Machine
    Identity's Universal Auth page in Infisical to create a replacement Client
    Secret, enter it locally in the Hermes profile, restart the gateway, verify the
@@ -187,10 +230,13 @@ An organization role and a project role serve different purposes: adding the ide
 ## Install and store the bootstrap credentials in Hermes
 
 ```bash
-hermes plugins install pablousx/hermes-plugin-infisical --enable
+hermes -p PROFILE_NAME config env-path
+hermes -p PROFILE_NAME plugins install pablousx/hermes-plugin-infisical --enable
 ```
 
-When a required value is not already configured, Hermes prompts for it and saves it to `~/.hermes/.env`. Enter the values directly in that local installer—not in an agent chat or command-line argument:
+Replace `PROFILE_NAME` with the profile used by the gateway. For the default profile, omit `-p PROFILE_NAME` from both commands. The first command prints the exact `.env` file that will receive the credentials.
+
+When a required value is not already configured, Hermes prompts for it. Enter the values directly in that local installer—not in an agent chat or command-line argument. Hermes writes all three values to the `.env` path printed above:
 
 | Hermes prompt | Value to enter |
 |---|---|
@@ -198,12 +244,20 @@ When a required value is not already configured, Hermes prompts for it and saves
 | `INFISICAL_UNIVERSAL_AUTH_CLIENT_ID` | The Client ID shown on the Machine Identity page |
 | `INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET` | The Client Secret produced by **Create Client Secret**; Hermes hides this input |
 
-Hermes automatically writes missing `requires_env` values to its profile-level `.env` file. The Client Secret belongs there because it is the bootstrap credential Hermes must have before this plugin can contact Infisical. Do not put it in `config.yaml`, the repository, the prompt, or an Infisical secret that can only be reached through this same plugin.
+The resulting profile `.env` contains these assignments:
 
-If the plugin was already installed before these values existed, add the same three entries to `~/.hermes/.env` with a trusted local editor. Do not place the Client Secret directly in a shell command, where it may be retained in shell history. Then restrict the file and restart Hermes:
+```env
+INFISICAL_HOST_URL=...
+INFISICAL_UNIVERSAL_AUTH_CLIENT_ID=...
+INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET=...
+```
+
+The Client ID and Client Secret both belong in this `.env` file because they are the bootstrap credentials Hermes needs before the plugin can contact Infisical. They do not belong in `config.yaml`. That file contains only non-secret scope settings such as `project_id`, `environment`, and `secret_path`.
+
+If the plugin was already installed before these values existed, run `hermes -p PROFILE_NAME config env-path` and add the same three entries to the file it prints using a trusted local editor. Do not place the Client Secret directly in a shell command, where it may be retained in shell history. Then restrict that file to mode `600` and restart the same profile's gateway. For the default profile:
 
 ```bash
-chmod 600 "${HERMES_HOME:-$HOME/.hermes}/.env"
+chmod 600 ~/.hermes/.env
 hermes gateway restart
 ```
 

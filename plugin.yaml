@@ -8,10 +8,10 @@ requires_env:
     url: "https://infisical.com/docs/documentation/platform/identities/universal-auth"
     secret: false
   - name: INFISICAL_UNIVERSAL_AUTH_CLIENT_ID
-    description: "Client ID from Organization Settings > Access Control > Identities > your Universal Auth Machine Identity"
+    description: "Client ID from Organization Settings > Access Control > Identities > your Universal Auth Machine Identity; Hermes saves it to the active profile .env"
     url: "https://infisical.com/docs/documentation/platform/identities/universal-auth"
     secret: false
   - name: INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET
-    description: "Client Secret generated with Create Client Secret on the Universal Auth Machine Identity; grant the identity read-only project access first"
+    description: "Client Secret generated with Create Client Secret on the Universal Auth Machine Identity; Hermes hides the input and saves it to the active profile .env"
     url: "https://infisical.com/docs/documentation/platform/identities/universal-auth"
     secret: true

@@ -13,6 +13,8 @@ All notable changes follow [Semantic Versioning](https://semver.org/).
   `requires_env` prompts.
 - Added a safe debugging prompt covering plugin discovery, bootstrap, configuration,
   authentication, authorization, network, precedence, and startup-timing failures.
+- Clarified the exact profile-scoped `.env` destination for the Universal Auth
+  Client ID and Client Secret, including the `hermes config env-path` lookup.
 
 ## [0.1.0] - 2026-08-04
 
