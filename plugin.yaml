@@ -4,11 +4,14 @@ description: "Load Hermes Agent secrets from Infisical using Universal Auth. Rea
 author: "Pablo Cabrera"
 requires_env:
   - name: INFISICAL_HOST_URL
-    description: Base URL of the Infisical instance
+    description: "Infisical base URL: https://app.infisical.com (Cloud US), https://eu.infisical.com (Cloud EU), or your self-hosted URL"
+    url: "https://infisical.com/docs/documentation/platform/identities/universal-auth"
     secret: false
   - name: INFISICAL_UNIVERSAL_AUTH_CLIENT_ID
-    description: Universal Auth Machine Identity client ID
+    description: "Client ID from Organization Settings > Access Control > Identities > your Universal Auth Machine Identity"
+    url: "https://infisical.com/docs/documentation/platform/identities/universal-auth"
     secret: false
   - name: INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET
-    description: Universal Auth Machine Identity client secret
+    description: "Client Secret generated with Create Client Secret on the Universal Auth Machine Identity; grant the identity read-only project access first"
+    url: "https://infisical.com/docs/documentation/platform/identities/universal-auth"
     secret: true

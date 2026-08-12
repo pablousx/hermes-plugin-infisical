@@ -16,42 +16,67 @@ A read-only [Hermes Agent](https://github.com/NousResearch/hermes-agent) `Secret
 
 ## Install with a prompt
 
-Paste this prompt into a Hermes agent. Replace the placeholders first. The agent should install the plugin, configure it, verify it without exposing values, and retain the operational rules for future credential use.
+Paste the prompt below into a Hermes agent. You do not need to paste the Client ID or Client Secret into the prompt. If the Infisical identity has not been prepared yet, the agent must walk you through the browser steps below and then pause while you enter the credentials directly into Hermes' local, interactive installer.
 
 ```text
 Install and configure the read-only Infisical SecretSource plugin for this Hermes profile.
 
 Plugin repository: pablousx/hermes-plugin-infisical
-Infisical project ID: <PROJECT_ID>
-Environment: <ENVIRONMENT, usually prod>
-Secret path: <SECRET_PATH, for example /hermes>
-Recursive: <true or false>
 
 Instructions:
 1. Read the repository README, SECURITY.md, plugin.yaml, and the installed Hermes
    SecretSource/plugin documentation before changing configuration.
-2. Install it with:
+2. Ask me only for these non-secret scope values if they are not already known:
+   Infisical host/region, project ID, environment slug, secret path, and whether
+   child folders should be read recursively. Do not ask me to send the Client
+   Secret—or any other secret—in chat.
+3. If I have not created the Infisical credentials, guide me through these steps:
+   a. In Infisical, open Organization Settings > Access Control > Identities and
+      choose Create identity. Give it a descriptive Hermes name and the least
+      privileged organization role available.
+   b. Keep or configure Universal Auth for the identity. Explain that this is the
+      authentication method that provides a Client ID and Client Secret.
+   c. On the identity page, choose Create Client Secret. Use a descriptive label
+      and a TTL/use limit compatible with repeated Hermes starts and refreshes.
+      Tell me to copy the displayed Client ID and new Client Secret to a password
+      manager; never ask me to paste either credential into this conversation.
+   d. In the target project, open Project Settings > Access Control > Machine
+      Identities, choose Add identity, select the new identity, and grant a project
+      role that can read secrets but cannot create, edit, or delete them.
+   e. In Project Settings, use Copy Project ID. Confirm the environment slug and
+      folder path containing the environment-shaped secrets Hermes should load.
+4. When the identity is ready, tell me to run this command myself in a private local
+   terminal:
    hermes plugins install pablousx/hermes-plugin-infisical --enable
-3. Configure secrets.sources and secrets.infisical for the values above. Preserve
+   Explain the three prompts before I run it: INFISICAL_HOST_URL is
+   https://app.infisical.com for Infisical Cloud US,
+   https://eu.infisical.com for Cloud EU, or my self-hosted URL; the Client ID is
+   copied from the identity; and the Client Secret is the newly generated value.
+   The installer hides secret input and saves the values to ~/.hermes/.env. Pause
+   until I confirm installation completed. Never type credentials into a tool call,
+   command argument, log, or chat message.
+5. After I confirm, verify only that the three required variable names are present;
+   never read or print their values. Configure secrets.sources and
+   secrets.infisical for the selected scope. Preserve
    INFISICAL_HOST_URL, INFISICAL_UNIVERSAL_AUTH_CLIENT_ID, and
    INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET.
-4. Use only the three bootstrap variables for Universal Auth. If any are missing,
-   ask me for them or retrieve them from the approved secret bootstrap location.
-   Never print, log, echo, commit, or include their values in tool output.
-5. Keep HTTPS required. Do not enable allow_insecure_http unless I explicitly say
+6. Use only those three bootstrap variables for Universal Auth. If any are still
+   missing, identify the missing variable by name and return me to the local
+   installer step. Never print, log, echo, commit, or include values in tool output.
+7. Keep HTTPS required. Do not enable allow_insecure_http unless I explicitly say
    this is a trusted private network.
-6. Restart the gateway and verify with `hermes secrets status`. Report only source
+8. Restart the gateway and verify with `hermes secrets status`. Report only source
    status, provenance, counts, and variable names when necessary. Never dump values
    or the complete process environment.
-7. Run a safe smoke test proving that at least one expected credential is attributed
+9. Run a safe smoke test proving that at least one expected credential is attributed
    to Infisical. Do not persist downloaded values to .env or config.yaml.
-8. From now on, when a task needs a credential supplied by this source, use the
+10. From now on, when a task needs a credential supplied by this source, use the
    environment variable normally. Do not fetch or display the raw value. If it is
    missing, report the variable name and Infisical source status instead of asking
    me to paste the secret into chat.
-9. Treat this plugin as read-only. Do not create, update, delete, or rotate Infisical
+11. Treat this plugin as read-only. Do not create, update, delete, or rotate Infisical
    secrets through it.
-10. Account for Hermes' first-process plugin timing limitation documented in the
+12. Account for Hermes' first-process plugin timing limitation documented in the
     README. Keep credentials required by the initial gateway process in the approved
     bootstrap source until Hermes resolves that limitation.
 
@@ -59,10 +84,126 @@ Finish by reporting the installed plugin version, configuration scope, test resu
 and any first-process credentials that could not be migrated. Do not report values.
 ```
 
-## Install
+## Debug with a prompt
+
+If installation completed but Infisical secrets are unavailable, paste this prompt into the affected Hermes profile. It tells Hermes to diagnose the failure without displaying credentials or downloaded secret values.
+
+```text
+Diagnose and, when safe, repair the Infisical SecretSource plugin for this Hermes
+profile.
+
+Plugin repository: pablousx/hermes-plugin-infisical
+
+Rules:
+1. Read the installed plugin's README.md, SECURITY.md, plugin.yaml, and the Hermes
+   plugin and SecretSource documentation that matches this installation before
+   making changes.
+2. Never print, return, log, compare, or place in a command argument the values of
+   INFISICAL_UNIVERSAL_AUTH_CLIENT_ID,
+   INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET, access tokens, or downloaded secrets.
+   Do not display ~/.hermes/.env, the process environment, HTTP bodies, or gateway
+   log lines that may contain values. Report only variable names and whether each is
+   present and non-empty.
+3. Confirm which Hermes profile and HERMES_HOME the affected gateway actually uses.
+   Diagnose that profile rather than assuming the default ~/.hermes profile.
+4. Work through these checks in order and keep sanitized evidence for the report:
+   a. Run `hermes plugins list` and confirm that infisical is installed, enabled,
+      loaded without a registration error, and sourced from the expected directory.
+      If discovery is unclear, run
+      `HERMES_PLUGINS_DEBUG=1 hermes plugins list`, but redact any sensitive output.
+   b. Confirm that plugin.yaml parses and that the installed files include
+      __init__.py and infisical_source.py. Check whether the installed checkout is
+      stale or detached at an unintended revision; do not update it until that is
+      shown to be the cause.
+   c. Check only the presence and non-empty status of INFISICAL_HOST_URL,
+      INFISICAL_UNIVERSAL_AUTH_CLIENT_ID, and
+      INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET in the affected profile's bootstrap
+      environment. Confirm the .env file is outside the plugin repository and has
+      restrictive permissions. Never read or reveal the values.
+   d. Parse config.yaml and verify: plugins.enabled contains infisical;
+      secrets.sources contains infisical; secrets.infisical.enabled is true;
+      project_id is non-empty; environment and secret_path are non-empty; recursive
+      is boolean; and the three bootstrap variable names are in
+      secrets.preserve_existing. Report the configured project ID, environment, and
+      path only after asking whether those non-secret identifiers may be shown.
+   e. Run `hermes secrets status`. Use its sanitized source status, error kind,
+      provenance, counts, warnings, and variable names to classify the failure.
+      Never dump secret values or the complete environment.
+   f. If networking is implicated, verify DNS, TCP/TLS reachability, certificate
+      validation, redirects, and that INFISICAL_HOST_URL is a base URL for the
+      correct Cloud region or self-hosted instance. Do not send credentials in a
+      manual curl request. Keep HTTPS enabled; do not set allow_insecure_http unless
+      I explicitly confirm a trusted private network and accept the risk.
+   g. Distinguish authentication failures from authorization or scope failures. An
+      authentication failure can mean an expired, revoked, exhausted, IP-restricted,
+      mismatched Client ID/Secret, or Universal Auth lockout. A reference/scope
+      failure can mean the identity was not added to the project, lacks read access,
+      or the project ID, environment slug, folder path, recursion setting, or E2EE
+      compatibility is wrong.
+   h. Check whether Hermes precedence explains a missing or unexpected value:
+      preserve_existing wins; existing values may win when override_existing is
+      false; mapped sources outrank bulk sources; and earlier equal-shape sources
+      win. Do not reveal either competing value.
+   i. Account for the documented first-process plugin timing limitation. Determine
+      whether the unavailable credential is required by the initial gateway process
+      or only by later children, sessions, or refreshes.
+5. You may repair clear local configuration mistakes, enable the installed plugin,
+   correct non-secret scope settings that I confirm, restrict .env permissions, and
+   restart the gateway. Preserve unrelated configuration and show a value-free diff
+   before writing. Ask before reinstalling, updating, changing a network security
+   setting, or modifying any credential.
+6. If credentials are missing or invalid, do not ask me to paste them into chat.
+   Tell me to run the plugin installer in a private local terminal and enter them in
+   its interactive prompts. If rotation is required, guide me to the Machine
+   Identity's Universal Auth page in Infisical to create a replacement Client
+   Secret, enter it locally in the Hermes profile, restart the gateway, verify the
+   replacement, and then revoke the old secret. Never perform or claim rotation
+   through this read-only plugin.
+7. If project access is the cause, tell me exactly where to fix it in Infisical:
+   Project Settings > Access Control > Machine Identities. Specify the missing
+   read-only role, environment, or path access without requesting secret values.
+8. After each safe repair, restart only the affected gateway when necessary and run
+   `hermes secrets status` again. Stop retrying after repeated authentication
+   failures to avoid triggering or extending Universal Auth lockout.
+
+Finish with: the root cause (or the remaining hypotheses ranked by evidence), checks
+performed, sanitized evidence, changes made, verification result, and exact manual
+steps still required. Do not report any credential or secret value.
+```
+
+## Prepare Infisical
+
+The plugin uses [Universal Auth](https://infisical.com/docs/documentation/platform/identities/universal-auth), so Hermes needs a Machine Identity with read access to the project. These steps use an organization-level identity, which works for both Infisical Cloud and self-hosted Infisical:
+
+1. Open **Organization Settings > Access Control > Identities** in Infisical and select **Create identity**.
+2. Give it a recognizable name, such as `hermes-production`, and assign the least-privileged organization role that fits your deployment. Universal Auth is enabled by default; keep it enabled or add it from the identity's **Authentication** section.
+3. On the identity page, select **Create Client Secret**. Give the credential a useful description. Choose a TTL and maximum-use count that permit every Hermes restart and secret refresh you expect; `0` means no expiry or use limit in Infisical. Restrict trusted IPs when your Infisical plan and network architecture support it.
+4. Copy the identity's **Client ID** and the newly displayed **Client Secret** into a password manager. Treat the Client ID like a username and the Client Secret like a password. If the secret is lost, create a replacement rather than sharing it through chat, tickets, or logs.
+5. Open the project that contains the secrets, then go to **Project Settings > Access Control > Machine Identities > Add identity**. Select the identity and grant it a project role that can read secrets but cannot create, edit, or delete them. For least privilege, limit the role to the environment and secret path Hermes needs when your Infisical configuration supports those restrictions.
+6. In **Project Settings**, select **Copy Project ID**. Also note the environment slug (for example `prod`) and folder path (for example `/hermes`). Secret keys in that folder should be valid environment variable names, such as `OPENAI_API_KEY`.
+
+An organization role and a project role serve different purposes: adding the identity to the project is required even though the identity already has an organization role. See Infisical's [Machine Identities guide](https://infisical.com/docs/documentation/platform/identities/machine-identities) for the underlying access model.
+
+## Install and store the bootstrap credentials in Hermes
 
 ```bash
 hermes plugins install pablousx/hermes-plugin-infisical --enable
+```
+
+When a required value is not already configured, Hermes prompts for it and saves it to `~/.hermes/.env`. Enter the values directly in that local installer—not in an agent chat or command-line argument:
+
+| Hermes prompt | Value to enter |
+|---|---|
+| `INFISICAL_HOST_URL` | `https://app.infisical.com` for Infisical Cloud US, `https://eu.infisical.com` for Cloud EU, or the base URL of your self-hosted instance |
+| `INFISICAL_UNIVERSAL_AUTH_CLIENT_ID` | The Client ID shown on the Machine Identity page |
+| `INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET` | The Client Secret produced by **Create Client Secret**; Hermes hides this input |
+
+Hermes automatically writes missing `requires_env` values to its profile-level `.env` file. The Client Secret belongs there because it is the bootstrap credential Hermes must have before this plugin can contact Infisical. Do not put it in `config.yaml`, the repository, the prompt, or an Infisical secret that can only be reached through this same plugin.
+
+If the plugin was already installed before these values existed, add the same three entries to `~/.hermes/.env` with a trusted local editor. Do not place the Client Secret directly in a shell command, where it may be retained in shell history. Then restrict the file and restart Hermes:
+
+```bash
+chmod 600 "${HERMES_HOME:-$HOME/.hermes}/.env"
 hermes gateway restart
 ```
 
@@ -77,9 +218,9 @@ hermes gateway restart
 
 The installer places the plugin under `$HERMES_HOME/plugins/infisical/`.
 
-## Bootstrap environment
+## Bootstrap environment reference
 
-Hermes needs three values before it can reach Infisical:
+The resulting Hermes profile contains these three values before it can reach Infisical:
 
 ```env
 INFISICAL_HOST_URL=https://infisical.example.com
@@ -87,7 +228,7 @@ INFISICAL_UNIVERSAL_AUTH_CLIENT_ID=...
 INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET=...
 ```
 
-Keep this bootstrap identity local, out of Git, and protect the containing file with mode `600`. Use a separate read-only Machine Identity per agent or deployment.
+Keep this bootstrap identity local, out of Git, and protect the containing file with mode `600`. Prefer a separate read-only Machine Identity for each distinct application and permission boundary so credentials can be revoked independently.
 
 ## Hermes configuration
 

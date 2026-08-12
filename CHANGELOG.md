@@ -4,6 +4,16 @@ All notable changes follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Expanded the README and install prompt with end-to-end Universal Auth setup,
+  least-privilege project access, credential retrieval, and safe Hermes storage
+  instructions.
+- Added Infisical setup guidance and documentation links to Hermes' interactive
+  `requires_env` prompts.
+- Added a safe debugging prompt covering plugin discovery, bootstrap, configuration,
+  authentication, authorization, network, precedence, and startup-timing failures.
+
 ## [0.1.0] - 2026-08-04
 
 ### Added
